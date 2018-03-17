@@ -1,0 +1,7 @@
+[package]
+name = "efloat"
+version = "0.1.0"
+authors = ["Mike Dilger <mike@optcomp.nz>"]
+description = "Error-bounded Floating Point"
+
+[dependencies]
