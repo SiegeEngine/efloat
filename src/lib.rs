@@ -5,10 +5,7 @@
 // * Addition is ok, but subtraction (or addition of differing signs) has
 //   a terrible error bound.
 
-use std::f32::INFINITY;
-use std::f32::MAX as MAX_FLOAT;
-pub const MACHINE_EPSILON: f32 = ::std::f32::EPSILON * 0.5;
-use std::ops::{Add, Sub, Mul, Div};
+use std::ops::{Add, Sub, Mul, Div, Neg};
 
 #[derive(Debug, Clone)]
 pub struct EFloat32 {
@@ -16,7 +13,7 @@ pub struct EFloat32 {
     low: f32,
     high: f32,
     #[cfg(debug_assertions)]
-    vPrecise: f64,
+    precise: f64,
 }
 
 impl EFloat32 {
@@ -26,7 +23,7 @@ impl EFloat32 {
             low: v,
             high: v,
             #[cfg(debug_assertions)]
-            vPrecise: v as f64,
+            precise: v as f64,
         };
         #[cfg(debug_assertions)] {
             ef.check();
@@ -44,7 +41,7 @@ impl EFloat32 {
             low: next_f32_down(v - err),
             high: next_f32_up(v + err),
             #[cfg(debug_assertions)]
-            vPrecise: v as f64,
+            precise: v as f64,
         };
         #[cfg(debug_assertions)] {
             ef.check();
@@ -55,14 +52,13 @@ impl EFloat32 {
     #[cfg(debug_assertions)]
     pub fn new_with_precise_err(v: f32, p: f64, err: f32) -> EFloat32 {
         let mut ef = Self::new_with_err(v, err);
-        ef.vPrecise = p;
+        ef.precise = p;
         ef.check();
         ef
     }
 
     #[inline]
     pub fn check(&self) {
-        use std;
         if !self.low.is_infinite() && !self.low.is_nan()
             && !self.high.is_infinite() && !self.high.is_nan()
         {
@@ -70,8 +66,8 @@ impl EFloat32 {
         }
         #[cfg(debug_assertions)] {
             if !self.v.is_infinite() && !self.v.is_nan() {
-                assert!(self.low as f64 <= self.vPrecise);
-                assert!(self.vPrecise <= self.high as f64);
+                assert!(self.low as f64 <= self.precise);
+                assert!(self.precise <= self.high as f64);
             }
         }
     }
@@ -94,12 +90,52 @@ impl EFloat32 {
 
     #[cfg(debug_assertions)]
     pub fn relative_error(&self) -> f32 {
-        ((self.vPrecise - self.v as f64) / self.vPrecise).abs() as f32
+        ((self.precise - self.v as f64) / self.precise).abs() as f32
     }
 
     #[cfg(debug_assertions)]
     pub fn precise(&self) -> f64 {
-        self.vPrecise
+        self.precise
+    }
+
+    pub fn sqrt(&self) -> EFloat32 {
+        let r = EFloat32 {
+            v: self.v.sqrt(),
+            low: next_f32_down(self.low.sqrt()),
+            high: next_f32_up(self.high.sqrt()),
+            #[cfg(debug_assertions)]
+            precise: self.precise.sqrt(),
+        };
+        r.check();
+        r
+    }
+
+    pub fn abs(&self) -> EFloat32 {
+        if self.low >= 0.0 {
+            // the entire interval is greater than zero, so we are done.
+            return self.clone();
+        } else if self.high <= 0.0 {
+            // the entire interval is less than zero
+            let r = EFloat32 {
+                v: -self.v,
+                low: -self.high,
+                high: -self.low,
+                #[cfg(debug_assertions)]
+                precise: -self.precise,
+            };
+            r.check();
+            return r;
+        } else {
+            let r = EFloat32 {
+                v: self.v.abs(),
+                low: 0.0,
+                high: -self.low.max(self.high),
+                #[cfg(debug_assertions)]
+                precise: self.precise.abs(),
+            };
+            r.check();
+            return r;
+        }
     }
 }
 
@@ -114,7 +150,7 @@ impl Add for EFloat32 {
             low: next_f32_down(self.low + other.low),
             high: next_f32_up(self.high + other.high),
             #[cfg(debug_assertions)]
-            vPrecise: self.vPrecise + other.vPrecise
+            precise: self.precise + other.precise
         };
         r.check();
         r
@@ -130,7 +166,7 @@ impl Sub for EFloat32 {
             low: next_f32_down(self.low - other.high),
             high: next_f32_up(self.high - other.low),
             #[cfg(debug_assertions)]
-            vPrecise: self.vPrecise - other.vPrecise
+            precise: self.precise - other.precise
         };
         r.check();
         r
@@ -155,7 +191,7 @@ impl Mul for EFloat32 {
             high: next_f32_up(
                 prod[0].max(prod[1]).max(prod[2].max(prod[3]))),
             #[cfg(debug_assertions)]
-            vPrecise: self.vPrecise * other.vPrecise
+            precise: self.precise * other.precise
         };
         r.check();
         r
@@ -166,15 +202,15 @@ impl Div for EFloat32 {
     type Output = EFloat32;
 
     fn div(self, other: EFloat32) -> EFloat32 {
-        if (other.low < 0.0 && other.high > 0.0) {
+        if other.low < 0.0 && other.high > 0.0 {
             // Bah. the interval we are dividing straddles zero, so just
             // return an interval of everything.
             return EFloat32 {
                 v: self.v / other.v,
-                low: -INFINITY,
-                high: INFINITY,
+                low: -std::f32::INFINITY,
+                high: std::f32::INFINITY,
                 #[cfg(debug_assertions)]
-                vPrecise: self.vPrecise / other.vPrecise
+                precise: self.precise / other.precise
             };
         }
         let prod: [f32; 4] = [
@@ -191,14 +227,34 @@ impl Div for EFloat32 {
             high: next_f32_up(
                 prod[0].max(prod[1]).max(prod[2].max(prod[3]))),
             #[cfg(debug_assertions)]
-            vPrecise: self.vPrecise / other.vPrecise
+            precise: self.precise / other.precise
         };
         r.check();
         r
     }
 }
 
+impl Neg for EFloat32 {
+    type Output = EFloat32;
 
+    fn neg(self) -> EFloat32 {
+        let r = EFloat32 {
+            v: -self.v,
+            low: -self.high,
+            high: -self.low,
+            #[cfg(debug_assertions)]
+            precise: -self.precise
+        };
+        r.check();
+        r
+    }
+}
+
+impl PartialEq for EFloat32 {
+    fn eq(&self, other: &EFloat32) -> bool {
+        self.v == other.v
+    }
+}
 
 fn f32_to_bits(f: f32) -> u32 {
   unsafe { ::std::mem::transmute(f) }
@@ -235,9 +291,10 @@ fn next_f32_down(f: f32) -> f32 {
 }
 
 // Higham (2002, sect 3.1)
-fn gamma(n: i32) -> f32 {
-    (n as f32 * MACHINE_EPSILON) / (1.0 - n as f32 * MACHINE_EPSILON)
-}
+//pub const MACHINE_EPSILON: f32 = ::std::f32::EPSILON * 0.5;
+//fn gamma(n: i32) -> f32 {
+//    (n as f32 * MACHINE_EPSILON) / (1.0 - n as f32 * MACHINE_EPSILON)
+//}
 
 
 #[cfg(test)]
