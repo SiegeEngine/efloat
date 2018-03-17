@@ -1,12 +1,25 @@
-// TIPS
-// * Operate on small numbers first, working up, so that the larger errors don't
-//   propogate and grow as much.
-// * Multiplication and division are pretty good
-// * Addition is ok, but subtraction (or addition of differing signs) has
-//   a terrible error bound.
+//! # efloat
+//!
+//! This is a floating point type that remembers how far off it might be from the
+//! actual precise value, based on it's history.  It keeps and upper and lower error
+//! bound internally, and you can check those with function calls.
+//!
+//! Here are a few tips:
+//! * Multiplication and division don't cause too much error.
+//! * Addition is ok, but subtraction (or addition of differing signs) has
+//!   a terrible error bound.
+//! * Operate on small numbers first, working up, so that the larger errors don't
+//!   propogate and grow as much.
+//!
+//! Logic taken from pbrt-v3: https://github.com/mmp/pbrt-v3  (efloat.h class)
+//!   by Matt Pharr, Greg Humphreys, and Wenzel Jakob.
+
 
 use std::ops::{Add, Sub, Mul, Div, Neg};
 
+/// This is a floating point type that remembers how far off it might be from the
+/// actual precise value, based on it's history.  It keeps and upper and lower error
+/// bound internally, and you can check those with function calls.
 #[derive(Debug, Clone)]
 pub struct EFloat32 {
     v: f32,
@@ -32,10 +45,6 @@ impl EFloat32 {
     }
 
     pub fn new_with_err(v: f32, err: f32) -> EFloat32 {
-        /* Compute conservative bounds by rounding the endpoints away
-           from the middle. Note that this will be over-conservative in
-           cases where v-err or v+err are exactly representable, but it's
-           probably not worth the trouble of checking this case. */
         let ef = EFloat32 {
             v: v,
             low: next_f32_down(v - err),
