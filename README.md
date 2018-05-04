@@ -2,7 +2,7 @@
 
 [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
-Documentation is available at https://docs.rs/efloag
+Documentation is available at https://docs.rs/efloat
 
 **efloat** is a component within the Siege Engine MMO game engine, but should be
 generally useful outside of that context.
