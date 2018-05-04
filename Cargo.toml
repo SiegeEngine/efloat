@@ -1,7 +1,12 @@
 [package]
 name = "efloat"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Mike Dilger <mike@optcomp.nz>"]
 description = "Error-bounded Floating Point"
+repository = "https://github.com/SiegeEngine/efloat"
+documentation = "https://docs.rs/efloat"
+readme = "README.md"
+keywords = [ "float", "error" ]
+license = "MIT"
 
 [dependencies]

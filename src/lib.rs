@@ -1,5 +1,8 @@
 //! # efloat
 //!
+//! licensed under the MIT License (MIT)
+//! Copyright (c) 2018 Michael Dilger
+//!
 //! This is a floating point type that remembers how far off it might be from the
 //! actual precise value, based on it's history.  It keeps and upper and lower error
 //! bound internally, and you can check those with function calls.
