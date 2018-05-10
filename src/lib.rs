@@ -279,7 +279,7 @@ fn bits_to_f32(u: u32) -> f32 {
 pub fn next_f32_up(f: f32) -> f32 {
   if f.is_infinite() && f > 0.0 {
     f
-  } else if f == -0.0 {
+  } else if f == -0.0 && f.is_sign_negative() {
     0.0
   } else {
     let mut u = f32_to_bits(f);
@@ -292,7 +292,7 @@ pub fn next_f32_up(f: f32) -> f32 {
 pub fn next_f32_down(f: f32) -> f32 {
   if f.is_infinite() && f < 0.0 {
     f
-  } else if f == 0.0 {
+  } else if f == 0.0 && f.is_sign_positive() {
     -0.0
   } else {
     let mut u = f32_to_bits(f);
