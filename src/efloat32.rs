@@ -1,4 +1,4 @@
-use num_traits::cast::ToPrimitive;
+use num_traits::cast::{NumCast, ToPrimitive};
 use num_traits::{Num, One, ParseFloatError, Zero};
 use std::cmp::Ordering;
 use std::ops::{Add, Div, Mul, Neg, Rem, Sub};
@@ -384,6 +384,19 @@ impl ToPrimitive for EFloat32 {
 
     fn to_f64(&self) -> Option<f64> {
         self.v.to_f64()
+    }
+}
+
+impl NumCast for EFloat32 {
+    #[inline]
+    fn from<T: ToPrimitive>(n: T) -> Option<EFloat32> {
+        n.to_f32().map(|f| EFloat32 {
+            v: f,
+            low: f,
+            high: f,
+            #[cfg(debug_assertions)]
+            precise: f as f64,
+        })
     }
 }
 
