@@ -1,4 +1,4 @@
-use std::ops::{Add, Div, Mul, Neg, Sub};
+use std::ops::{Add, Div, Mul, Neg, Rem, Sub};
 
 /// This is a floating point type that remembers how far off it might be from the
 /// actual precise value, based on it's history.  It keeps and upper and lower error
@@ -215,6 +215,40 @@ impl Div for EFloat32 {
 
         let r = EFloat32 {
             v: self.v / other.v,
+            low: next_f32_down(prod[0].min(prod[1]).min(prod[2].min(prod[3]))),
+            high: next_f32_up(prod[0].max(prod[1]).max(prod[2].max(prod[3]))),
+            #[cfg(debug_assertions)]
+            precise: self.precise / other.precise,
+        };
+        r.check();
+        r
+    }
+}
+
+impl Rem for EFloat32 {
+    type Output = EFloat32;
+
+    fn rem(self, other: EFloat32) -> EFloat32 {
+        if other.low < 0.0 && other.high > 0.0 {
+            // Bah. the interval we are dividing straddles zero, so just
+            // return an interval of everything.
+            return EFloat32 {
+                v: self.v / other.v,
+                low: -::std::f32::INFINITY,
+                high: ::std::f32::INFINITY,
+                #[cfg(debug_assertions)]
+                precise: self.precise / other.precise,
+            };
+        }
+        let prod: [f32; 4] = [
+            self.low % other.low,
+            self.high % other.low,
+            self.low % other.high,
+            self.high % other.high,
+        ];
+
+        let r = EFloat32 {
+            v: self.v % other.v,
             low: next_f32_down(prod[0].min(prod[1]).min(prod[2].min(prod[3]))),
             high: next_f32_up(prod[0].max(prod[1]).max(prod[2].max(prod[3]))),
             #[cfg(debug_assertions)]
