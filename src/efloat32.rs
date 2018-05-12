@@ -1,10 +1,11 @@
 use num_traits::{Num, One, ParseFloatError, Zero};
+use std::cmp::Ordering;
 use std::ops::{Add, Div, Mul, Neg, Rem, Sub};
 
 /// This is a floating point type that remembers how far off it might be from the
 /// actual precise value, based on it's history.  It keeps and upper and lower error
 /// bound internally, and you can check those with function calls.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct EFloat32 {
     v: f32,
     low: f32,
@@ -279,6 +280,12 @@ impl Neg for EFloat32 {
 impl PartialEq for EFloat32 {
     fn eq(&self, other: &EFloat32) -> bool {
         self.v == other.v
+    }
+}
+
+impl PartialOrd for EFloat32 {
+    fn partial_cmp(&self, other: &EFloat32) -> Option<Ordering> {
+        self.v.partial_cmp(&other.v)
     }
 }
 
