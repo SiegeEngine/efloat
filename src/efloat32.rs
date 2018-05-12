@@ -1,3 +1,4 @@
+use num_traits::cast::ToPrimitive;
 use num_traits::{Num, One, ParseFloatError, Zero};
 use std::cmp::Ordering;
 use std::ops::{Add, Div, Mul, Neg, Rem, Sub};
@@ -324,18 +325,65 @@ impl One for EFloat32 {
 impl Num for EFloat32 {
     type FromStrRadixErr = ParseFloatError;
 
-    fn from_str_radix(
-        src: &str,
-        radix: u32
-    ) -> Result<EFloat32, ParseFloatError> {
+    fn from_str_radix(src: &str, radix: u32) -> Result<EFloat32, ParseFloatError> {
         let f = f32::from_str_radix(src, radix)?;
         Ok(EFloat32 {
             v: f,
             low: f,
             high: f,
             #[cfg(debug_assertions)]
-            precise: f as f64
+            precise: f as f64,
         })
+    }
+}
+
+impl ToPrimitive for EFloat32 {
+    fn to_i64(&self) -> Option<i64> {
+        self.v.to_i64()
+    }
+
+    fn to_u64(&self) -> Option<u64> {
+        self.v.to_u64()
+    }
+
+    fn to_isize(&self) -> Option<isize> {
+        self.v.to_isize()
+    }
+
+    fn to_i8(&self) -> Option<i8> {
+        self.v.to_i8()
+    }
+
+    fn to_i16(&self) -> Option<i16> {
+        self.v.to_i16()
+    }
+
+    fn to_i32(&self) -> Option<i32> {
+        self.v.to_i32()
+    }
+
+    fn to_usize(&self) -> Option<usize> {
+        self.v.to_usize()
+    }
+
+    fn to_u8(&self) -> Option<u8> {
+        self.v.to_u8()
+    }
+
+    fn to_u16(&self) -> Option<u16> {
+        self.v.to_u16()
+    }
+
+    fn to_u32(&self) -> Option<u32> {
+        self.v.to_u32()
+    }
+
+    fn to_f32(&self) -> Option<f32> {
+        self.v.to_f32()
+    }
+
+    fn to_f64(&self) -> Option<f64> {
+        self.v.to_f64()
     }
 }
 
