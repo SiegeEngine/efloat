@@ -17,5 +17,7 @@
 //! Logic taken from pbrt-v3: https://github.com/mmp/pbrt-v3  (efloat.h class)
 //!   by Matt Pharr, Greg Humphreys, and Wenzel Jakob.
 
+extern crate num_traits;
+
 mod efloat32;
 pub use self::efloat32::*;

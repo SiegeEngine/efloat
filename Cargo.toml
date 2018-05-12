@@ -10,3 +10,4 @@ keywords = [ "float", "error" ]
 license = "MIT"
 
 [dependencies]
+num-traits = "0.2"
