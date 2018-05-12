@@ -1,4 +1,4 @@
-use num_traits::{One, Zero};
+use num_traits::{Num, One, ParseFloatError, Zero};
 use std::ops::{Add, Div, Mul, Neg, Rem, Sub};
 
 /// This is a floating point type that remembers how far off it might be from the
@@ -311,6 +311,24 @@ impl One for EFloat32 {
 
     fn is_one(&self) -> bool {
         self.low <= 1.0 && self.high >= 1.0
+    }
+}
+
+impl Num for EFloat32 {
+    type FromStrRadixErr = ParseFloatError;
+
+    fn from_str_radix(
+        src: &str,
+        radix: u32
+    ) -> Result<EFloat32, ParseFloatError> {
+        let f = f32::from_str_radix(src, radix)?;
+        Ok(EFloat32 {
+            v: f,
+            low: f,
+            high: f,
+            #[cfg(debug_assertions)]
+            precise: f as f64
+        })
     }
 }
 
