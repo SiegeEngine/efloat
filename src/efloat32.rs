@@ -1,6 +1,7 @@
 use num_traits::cast::{NumCast, ToPrimitive};
-use num_traits::{Num, One, ParseFloatError, Zero};
+use num_traits::{Float, Num, One, ParseFloatError, Zero};
 use std::cmp::Ordering;
+use std::num::FpCategory;
 use std::ops::{Add, Div, Mul, Neg, Rem, Sub};
 
 /// This is a floating point type that remembers how far off it might be from the
@@ -398,6 +399,283 @@ impl NumCast for EFloat32 {
             precise: f as f64,
         })
     }
+}
+
+macro_rules! fn_noparams_self {
+    ($fn:ident) => {
+        fn $fn() -> Self {
+            let f = f32::$fn();
+            EFloat32 {
+                v: f,
+                low: f,
+                high: f,
+                #[cfg(debug_assertions)]
+                precise: f as f64,
+            }
+        }
+    };
+}
+macro_rules! fn_self {
+    ($fn:ident, $out:ty) => {
+        fn $fn(self) -> $out {
+            self.v.$fn()
+        }
+    };
+}
+macro_rules! fn_self_self {
+    ($fn:ident) => {
+        fn $fn(self) -> EFloat32 {
+            let r = EFloat32 {
+                v: self.v.$fn(),
+                low: next_f32_down(self.low.$fn()),
+                high: next_f32_up(self.high.$fn()),
+                #[cfg(debug_assertions)]
+                precise: self.precise.$fn(),
+            };
+            r.check();
+            r
+        }
+    };
+}
+macro_rules! fn_self_unimpl {
+    ($fn:ident, $out:ty) => {
+        fn $fn(self) -> $out {
+            unimplemented!()
+        }
+    };
+}
+
+impl Float for EFloat32 {
+    fn_noparams_self!(nan);
+    fn_noparams_self!(infinity);
+    fn_noparams_self!(neg_infinity);
+    fn_noparams_self!(neg_zero);
+    fn_noparams_self!(min_value);
+    fn_noparams_self!(min_positive_value);
+    fn_noparams_self!(max_value);
+
+    fn_self!(is_nan, bool);
+    fn_self!(is_infinite, bool); // maybe also true if low/high is infinite?
+    fn_self!(is_finite, bool); // maybe also true if low/high is finite?
+    fn_self!(is_normal, bool); // maybe also true if low/high is normal?
+    fn_self!(classify, FpCategory);
+
+    fn_self_self!(floor);
+    fn_self_self!(ceil);
+    fn_self_self!(round);
+    fn_self_self!(trunc);
+
+    fn fract(self) -> EFloat32 {
+        let r = if self.low.trunc() != self.high.trunc() {
+            // The range straddles an integer. We know that we are within
+            // two ranges now. However, we can't represent that, so we
+            // have to take the entire [0,1).
+            EFloat32 {
+                v: self.v.fract(),
+                low: 0.0,
+                high: next_f32_down(1.0),
+                #[cfg(debug_assertions)]
+                precise: self.precise.fract(),
+            }
+        } else {
+            EFloat32 {
+                v: self.v.fract(),
+                low: self.low.fract(),
+                high: self.high.fract(),
+                #[cfg(debug_assertions)]
+                precise: self.precise.fract(),
+            }
+        };
+        r.check();
+        r
+    }
+
+    fn abs(self) -> EFloat32 {
+        let r = EFloat32 {
+            v: self.v.abs(),
+            low: if self.low < 0.0 && self.high > 0.0 {
+                0.0
+            } else {
+                next_f32_down(self.low.abs().min(self.high.abs()))
+            },
+            high: next_f32_up(self.low.abs().max(self.high.abs())),
+            #[cfg(debug_assertions)]
+            precise: self.precise.abs(),
+        };
+        r.check();
+        r
+    }
+
+    fn signum(self) -> EFloat32 {
+        let r = EFloat32 {
+            v: self.v.signum(),
+            low: self.low.signum(),
+            high: self.high.signum(),
+            #[cfg(debug_assertions)]
+            precise: self.precise.signum()
+        };
+        r.check();
+        r
+    }
+
+    fn is_sign_positive(self) -> bool {
+        // we can't give a singular answer for a range, so we just
+        // use the 'v' value itself
+        self.v.is_sign_positive()
+    }
+
+    fn is_sign_negative(self) -> bool {
+        // we can't give a singular answer for a range, so we just
+        // use the 'v' value itself
+        self.v.is_sign_negative()
+    }
+
+    fn mul_add(self, a: Self, b: Self) -> Self {
+        let prod: [f32; 8] = [
+            self.low.mul_add(a.low, b.low),
+            self.low.mul_add(a.low, b.high),
+            self.low.mul_add(a.high, b.low),
+            self.low.mul_add(a.high, b.high),
+            self.high.mul_add(a.low, b.low),
+            self.high.mul_add(a.low, b.high),
+            self.high.mul_add(a.high, b.low),
+            self.high.mul_add(a.high, b.high)
+        ];
+        let cmp = |a: &&f32, b: &&f32| {
+            if **a<**b { Ordering::Less }
+            else if **a>**b { Ordering::Greater }
+            else { Ordering::Equal }
+        };
+        let r = EFloat32 {
+            v: self.v.mul_add(a.v, b.v),
+            low: next_f32_down(*prod.iter().min_by(cmp).unwrap()),
+            high: next_f32_up(*prod.iter().max_by(cmp).unwrap()),
+            #[cfg(debug_assertions)]
+            precise: self.precise.mul_add(a.precise, b.precise),
+        };
+        r.check();
+        r
+    }
+
+    fn recip(self) -> Self {
+        let f = EFloat32 {
+            v: self.v.recip(),
+            low: next_f32_down(self.low.recip().min(self.high.recip())),
+            high: next_f32_up(self.low.recip().max(self.high.recip())),
+            #[cfg(debug_assertions)]
+            precise: self.precise.recip(),
+        };
+        f.check();
+        f
+    }
+
+    fn powi(self, n: i32) -> Self {
+        unimplemented!()
+    }
+    fn powf(self, n: Self) -> Self {
+        unimplemented!()
+    }
+    fn sqrt(self) -> Self {
+        unimplemented!()
+    }
+    fn exp(self) -> Self{
+        unimplemented!()
+    }
+    fn exp2(self) -> Self{
+        unimplemented!()
+    }
+    fn ln(self) -> Self{
+        unimplemented!()
+    }
+    fn log(self, base: Self) -> Self{
+        unimplemented!()
+    }
+    fn log2(self) -> Self{
+        unimplemented!()
+    }
+    fn log10(self) -> Self{
+        unimplemented!()
+    }
+    fn max(self, other: Self) -> Self{
+        unimplemented!()
+    }
+    fn min(self, other: Self) -> Self{
+        unimplemented!()
+    }
+    fn abs_sub(self, other: Self) -> Self{
+        unimplemented!()
+    }
+    fn cbrt(self) -> Self{
+        unimplemented!()
+    }
+    fn hypot(self, other: Self) -> Self{
+        unimplemented!()
+    }
+    fn sin(self) -> Self{
+        unimplemented!()
+    }
+    fn cos(self) -> Self{
+        unimplemented!()
+    }
+    fn tan(self) -> Self{
+        unimplemented!()
+    }
+    fn asin(self) -> Self{
+        unimplemented!()
+    }
+    fn acos(self) -> Self{
+        unimplemented!()
+    }
+    fn atan(self) -> Self{
+        unimplemented!()
+    }
+    fn atan2(self, other: Self) -> Self{
+        unimplemented!()
+    }
+    fn sin_cos(self) -> (Self, Self){
+        unimplemented!()
+    }
+    fn exp_m1(self) -> Self{
+        unimplemented!()
+    }
+    fn ln_1p(self) -> Self{
+        unimplemented!()
+    }
+    fn sinh(self) -> Self{
+        unimplemented!()
+    }
+    fn cosh(self) -> Self{
+        unimplemented!()
+    }
+    fn tanh(self) -> Self{
+        unimplemented!()
+    }
+    fn asinh(self) -> Self{
+        unimplemented!()
+    }
+    fn acosh(self) -> Self{
+        unimplemented!()
+    }
+    fn atanh(self) -> Self{
+        unimplemented!()
+    }
+    fn integer_decode(self) -> (u64, i16, i8) {
+        unimplemented!()
+    }
+
+    fn epsilon() -> EFloat32 {
+        let e = f32::epsilon();
+        EFloat32 {
+            v: e,
+            low: e,
+            high: e,
+            #[cfg(debug_assertions)]
+            precise: f64::epsilon(),
+        }
+    }
+
+    //fn to_degrees(self) -> Self { ... }
+    //fn to_radians(self) -> Self { ... }
 }
 
 fn f32_to_bits(f: f32) -> u32 {
