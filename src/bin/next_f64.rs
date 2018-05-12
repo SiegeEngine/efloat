@@ -1,4 +1,3 @@
-
 use std::env;
 
 fn main() {
@@ -11,35 +10,41 @@ fn main() {
 }
 
 fn f64_to_bits(f: f64) -> u64 {
-  unsafe { ::std::mem::transmute(f) }
+    unsafe { ::std::mem::transmute(f) }
 }
 
 fn bits_to_f64(u: u64) -> f64 {
-  unsafe { ::std::mem::transmute(u) }
+    unsafe { ::std::mem::transmute(u) }
 }
 
 fn next_f64_up(f: f64) -> f64 {
-  if f.is_infinite() && f > 0.0 {
-    f
-  } else if f == -0.0 {
-    0.0
-  } else {
-    let mut u = f64_to_bits(f);
-    if f>=0.0 { u+=1; }
-    else { u-=1; }
-    bits_to_f64(u)
-  }
+    if f.is_infinite() && f > 0.0 {
+        f
+    } else if f == -0.0 {
+        0.0
+    } else {
+        let mut u = f64_to_bits(f);
+        if f >= 0.0 {
+            u += 1;
+        } else {
+            u -= 1;
+        }
+        bits_to_f64(u)
+    }
 }
 
 fn next_f64_down(f: f64) -> f64 {
-  if f.is_infinite() && f < 0.0 {
-    f
-  } else if f == 0.0 {
-    -0.0
-  } else {
-    let mut u = f64_to_bits(f);
-    if f<=-0.0 { u+=1; }
-    else { u-=1; }
-    bits_to_f64(u)
-  }
+    if f.is_infinite() && f < 0.0 {
+        f
+    } else if f == 0.0 {
+        -0.0
+    } else {
+        let mut u = f64_to_bits(f);
+        if f <= -0.0 {
+            u += 1;
+        } else {
+            u -= 1;
+        }
+        bits_to_f64(u)
+    }
 }
