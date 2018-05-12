@@ -1,3 +1,4 @@
+use num_traits::{One, Zero};
 use std::ops::{Add, Div, Mul, Neg, Rem, Sub};
 
 /// This is a floating point type that remembers how far off it might be from the
@@ -278,6 +279,38 @@ impl Neg for EFloat32 {
 impl PartialEq for EFloat32 {
     fn eq(&self, other: &EFloat32) -> bool {
         self.v == other.v
+    }
+}
+
+impl Zero for EFloat32 {
+    fn zero() -> EFloat32 {
+        EFloat32 {
+            v: 0.0,
+            low: 0.0,
+            high: 0.0,
+            #[cfg(debug_assertions)]
+            precise: 0.0,
+        }
+    }
+
+    fn is_zero(&self) -> bool {
+        self.low <= 0.0 && self.high >= 0.0
+    }
+}
+
+impl One for EFloat32 {
+    fn one() -> EFloat32 {
+        EFloat32 {
+            v: 1.0,
+            low: 1.0,
+            high: 1.0,
+            #[cfg(debug_assertions)]
+            precise: 1.0,
+        }
+    }
+
+    fn is_one(&self) -> bool {
+        self.low <= 1.0 && self.high >= 1.0
     }
 }
 
