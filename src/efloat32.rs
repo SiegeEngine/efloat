@@ -1,3 +1,4 @@
+use float_cmp::ApproxEq;
 use num_traits::cast::{NumCast, ToPrimitive};
 use num_traits::{Num, One, ParseFloatError, Zero};
 use std::cmp::Ordering;
@@ -397,6 +398,15 @@ impl NumCast for EFloat32 {
             #[cfg(debug_assertions)]
             precise: f as f64,
         })
+    }
+}
+
+impl ApproxEq for EFloat32 {
+    type Margin = ();
+
+    fn approx_eq(&self, other: &Self, _margin: &()) -> bool {
+        // same logic as  !(self.high < other.low || other.high < self.low)
+        self.high >= other.low && other.high >= self.low
     }
 }
 
